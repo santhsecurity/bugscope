@@ -574,7 +574,7 @@ fn parse_scope_text(
     platform: Platform,
 ) -> Result<BountyProgram, BugscopeError> {
     let clean = strip_html(content)?;
-    let severity_re = Regex::new(r"(?i)\b(critical|high|medium|low|info)\b")?;
+    static SEVERITY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(critical|high|medium|low|info)\b").unwrap_or_else(|_| unreachable!()));
     let mut in_scope = Vec::new();
     let mut out_of_scope = Vec::new();
     let mut seen_in = HashSet::new();
@@ -592,7 +592,7 @@ fn parse_scope_text(
             continue;
         }
 
-        let max_severity = severity_re
+        let max_severity = SEVERITY_RE
             .captures(line)
             .and_then(|caps| caps.get(1))
             .map(|m| m.as_str().to_ascii_lowercase());
@@ -630,27 +630,27 @@ fn parse_scope_text(
 }
 
 fn strip_html(content: &str) -> Result<String, BugscopeError> {
-    let script_re = Regex::new(r"(?is)<script.*?</script>")?;
-    let style_re = Regex::new(r"(?is)<style.*?</style>")?;
-    let tag_re = Regex::new(r"(?is)<[^>]+>")?;
+    static SCRIPT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<script.*?</script>").unwrap_or_else(|_| unreachable!()));
+    static STYLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<style.*?</style>").unwrap_or_else(|_| unreachable!()));
+    static TAG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").unwrap_or_else(|_| unreachable!()));
 
-    let without_scripts = script_re.replace_all(content, "\n");
-    let without_styles = style_re.replace_all(&without_scripts, "\n");
-    let without_tags = tag_re.replace_all(&without_styles, "\n");
+    let without_scripts = SCRIPT_RE.replace_all(content, "\n");
+    let without_styles = STYLE_RE.replace_all(&without_scripts, "\n");
+    let without_tags = TAG_RE.replace_all(&without_styles, "\n");
     Ok(without_tags.replace("&amp;", "&").replace("&nbsp;", " "))
 }
 
 fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeError> {
-    let url_re = Regex::new(r"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+")?;
-    let cidr_re = Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}\b")?;
-    let wildcard_re = Regex::new(r"\*\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}")?;
-    let domain_re = Regex::new(r"\b[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\b")?;
-    let mobile_re = Regex::new(r"(?i)\b(?:com|net|io)\.[a-z0-9_.-]+\b")?;
+    static URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+").unwrap_or_else(|_| unreachable!()));
+    static CIDR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}\b").unwrap_or_else(|_| unreachable!()));
+    static WILDCARD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\*\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}").unwrap_or_else(|_| unreachable!()));
+    static DOMAIN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\b[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\b").unwrap_or_else(|_| unreachable!()));
+    static MOBILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:com|net|io)\.[a-z0-9_.-]+\b").unwrap_or_else(|_| unreachable!()));
 
     let mut targets = Vec::new();
     let mut seen = HashSet::new();
 
-    for matched in url_re
+    for matched in URL_RE
         .find_iter(line)
         .map(|m| m.as_str().trim_end_matches('.'))
     {
@@ -665,7 +665,7 @@ fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeErr
         }
     }
 
-    for matched in cidr_re.find_iter(line).map(|m| m.as_str()) {
+    for matched in CIDR_RE.find_iter(line).map(|m| m.as_str()) {
         let normalized = normalize_target(matched);
         if seen.insert(normalized.clone()) {
             targets.push(ScopeTarget {
@@ -677,7 +677,7 @@ fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeErr
         }
     }
 
-    for matched in wildcard_re.find_iter(line).map(|m| m.as_str()) {
+    for matched in WILDCARD_RE.find_iter(line).map(|m| m.as_str()) {
         let normalized = normalize_target(matched);
         if seen.insert(normalized.clone()) {
             targets.push(ScopeTarget {
@@ -689,7 +689,7 @@ fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeErr
         }
     }
 
-    for matched in domain_re.find_iter(line).map(|m| m.as_str()) {
+    for matched in DOMAIN_RE.find_iter(line).map(|m| m.as_str()) {
         let normalized = normalize_target(matched);
         if seen.insert(normalized.clone()) {
             targets.push(ScopeTarget {
@@ -701,7 +701,7 @@ fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeErr
         }
     }
 
-    for matched in mobile_re.find_iter(line).map(|m| m.as_str()) {
+    for matched in MOBILE_RE.find_iter(line).map(|m| m.as_str()) {
         let normalized = normalize_target(matched);
         if seen.insert(normalized.clone()) {
             targets.push(ScopeTarget {
