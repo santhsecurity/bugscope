@@ -5,6 +5,8 @@
 
 #![warn(missing_docs)]
 #![warn(clippy::pedantic)]
+#![allow(clippy::items_after_statements)]
+#![allow(clippy::unnecessary_wraps)]
 
 pub mod cli;
 pub mod config;
