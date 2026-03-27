@@ -132,10 +132,7 @@ impl RateLimiter {
                 &format!("rules[{}].requests_per_second", compiled.len() - 1),
                 rule.requests_per_second,
             )?;
-            validate_burst(
-                &format!("rules[{}].burst", compiled.len() - 1),
-                rule.burst,
-            )?;
+            validate_burst(&format!("rules[{}].burst", compiled.len() - 1), rule.burst)?;
             let matcher = if rule.pattern == "*" {
                 None
             } else {

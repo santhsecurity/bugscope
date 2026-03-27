@@ -214,7 +214,10 @@ mod tests {
         );
         assert_eq!(config.credentials.handle.as_deref(), Some("alice"));
         assert_eq!(config.credentials.token.as_deref(), Some("secret"));
-        assert_eq!(config.notes.as_deref(), Some("Coordinate through the program slack."));
+        assert_eq!(
+            config.notes.as_deref(),
+            Some("Coordinate through the program slack.")
+        );
         assert_eq!(config.program_name, "acme");
     }
 
@@ -240,9 +243,7 @@ mod tests {
             store.active_name().expect("active"),
             Some("acme".to_string())
         );
-        let active_file = store
-            .paths
-            .active_engagement_file();
+        let active_file = store.paths.active_engagement_file();
         let contents = std::fs::read_to_string(active_file).expect("active file");
         assert_eq!(contents, "acme");
     }

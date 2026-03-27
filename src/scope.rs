@@ -8,8 +8,8 @@ use std::str::FromStr;
 use std::sync::OnceLock;
 use std::time::Duration;
 
-use ipnet::IpNet;
 use idna::domain_to_ascii;
+use ipnet::IpNet;
 use regex::Regex;
 use reqwest::{Client, Method, Request, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
@@ -575,7 +575,9 @@ fn parse_scope_text(
     platform: Platform,
 ) -> Result<BountyProgram, BugscopeError> {
     let clean = strip_html(content)?;
-    static SEVERITY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(critical|high|medium|low|info)\b").unwrap_or_else(|_| unreachable!()));
+    static SEVERITY_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(critical|high|medium|low|info)\b").unwrap_or_else(|_| unreachable!())
+    });
     let mut in_scope = Vec::new();
     let mut out_of_scope = Vec::new();
     let mut seen_in = HashSet::new();
@@ -631,9 +633,14 @@ fn parse_scope_text(
 }
 
 fn strip_html(content: &str) -> Result<String, BugscopeError> {
-    static SCRIPT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<script.*?</script>").unwrap_or_else(|_| unreachable!()));
-    static STYLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<style.*?</style>").unwrap_or_else(|_| unreachable!()));
-    static TAG_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").unwrap_or_else(|_| unreachable!()));
+    static SCRIPT_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?is)<script.*?</script>").unwrap_or_else(|_| unreachable!())
+    });
+    static STYLE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?is)<style.*?</style>").unwrap_or_else(|_| unreachable!())
+    });
+    static TAG_RE: std::sync::LazyLock<Regex> =
+        std::sync::LazyLock::new(|| Regex::new(r"(?is)<[^>]+>").unwrap_or_else(|_| unreachable!()));
 
     let without_scripts = SCRIPT_RE.replace_all(content, "\n");
     let without_styles = STYLE_RE.replace_all(&without_scripts, "\n");
@@ -642,11 +649,22 @@ fn strip_html(content: &str) -> Result<String, BugscopeError> {
 }
 
 fn extract_targets_from_line(line: &str) -> Result<Vec<ScopeTarget>, BugscopeError> {
-    static URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+").unwrap_or_else(|_| unreachable!()));
-    static CIDR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}\b").unwrap_or_else(|_| unreachable!()));
-    static WILDCARD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\*\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}").unwrap_or_else(|_| unreachable!()));
-    static DOMAIN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"\b[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\b").unwrap_or_else(|_| unreachable!()));
-    static MOBILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| Regex::new(r"(?i)\b(?:com|net|io)\.[a-z0-9_.-]+\b").unwrap_or_else(|_| unreachable!()));
+    static URL_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"https?://[A-Za-z0-9._~:/?#\[\]@!$&'()*+,;=%-]+")
+            .unwrap_or_else(|_| unreachable!())
+    });
+    static CIDR_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"\b(?:\d{1,3}\.){3}\d{1,3}/\d{1,2}\b").unwrap_or_else(|_| unreachable!())
+    });
+    static WILDCARD_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"\*\.[A-Za-z0-9.-]+\.[A-Za-z]{2,}").unwrap_or_else(|_| unreachable!())
+    });
+    static DOMAIN_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"\b[a-z0-9][a-z0-9.-]+\.[a-z]{2,}\b").unwrap_or_else(|_| unreachable!())
+    });
+    static MOBILE_RE: std::sync::LazyLock<Regex> = std::sync::LazyLock::new(|| {
+        Regex::new(r"(?i)\b(?:com|net|io)\.[a-z0-9_.-]+\b").unwrap_or_else(|_| unreachable!())
+    });
 
     let mut targets = Vec::new();
     let mut seen = HashSet::new();
@@ -882,7 +900,7 @@ impl ScopePattern {
                 pattern: pattern.to_string(),
             });
         }
-        
+
         let normalized = normalize_host_like(pattern);
 
         if let Ok(ip) = IpAddr::from_str(&normalized) {
@@ -894,7 +912,7 @@ impl ScopePattern {
         }
 
         if let Some(stripped) = normalized.strip_prefix("*.") {
-            // Reject wildcard-only patterns like "*" or "*." 
+            // Reject wildcard-only patterns like "*" or "*."
             if stripped.is_empty() || stripped.contains('*') {
                 return Err(BugscopeError::InvalidScopePattern {
                     pattern: pattern.to_string(),

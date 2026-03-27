@@ -19,18 +19,33 @@ mod adversarial_tests {
     #[test]
     fn test_scope_pattern_wildcard_variants() {
         let test_domains = [
-            "example1.com", "example2.com", "example3.com",
-            "example4.com", "example5.com", "example6.com",
-            "example7.com", "example8.com", "example9.com",
+            "example1.com",
+            "example2.com",
+            "example3.com",
+            "example4.com",
+            "example5.com",
+            "example6.com",
+            "example7.com",
+            "example8.com",
+            "example9.com",
             "example10.com",
         ];
-        
+
         for domain in &test_domains {
             let pattern = ScopePattern::parse(&format!("*.{}", domain)).unwrap();
-            assert!(pattern.matches(&format!("api.{}", domain)), "should match subdomain");
-            assert!(pattern.matches(&format!("v1.api.{}", domain)), "should match nested subdomain");
+            assert!(
+                pattern.matches(&format!("api.{}", domain)),
+                "should match subdomain"
+            );
+            assert!(
+                pattern.matches(&format!("v1.api.{}", domain)),
+                "should match nested subdomain"
+            );
             assert!(!pattern.matches(domain), "should not match apex domain");
-            assert!(!pattern.matches(&format!("another{}", domain)), "should not match different domain");
+            assert!(
+                !pattern.matches(&format!("another{}", domain)),
+                "should not match different domain"
+            );
         }
     }
 
@@ -39,12 +54,18 @@ mod adversarial_tests {
         // Test exact IP patterns
         let ip_pattern = ScopePattern::parse("192.168.1.1").unwrap();
         assert!(ip_pattern.matches("192.168.1.1"), "exact IP should match");
-        assert!(!ip_pattern.matches("192.168.1.2"), "different IP should not match");
-        
+        assert!(
+            !ip_pattern.matches("192.168.1.2"),
+            "different IP should not match"
+        );
+
         // Test CIDR patterns - note: current implementation matches CIDR pattern string
         let cidr_pattern = ScopePattern::parse("192.168.1.0/24").unwrap();
         // The CIDR pattern matches itself as a string representation
-        assert!(cidr_pattern.matches("192.168.1.0/24"), "CIDR should match itself as string");
+        assert!(
+            cidr_pattern.matches("192.168.1.0/24"),
+            "CIDR should match itself as string"
+        );
         // Note: CIDR to individual IP matching depends on implementation details
     }
 
@@ -53,11 +74,11 @@ mod adversarial_tests {
         // Test CIDR parsing - patterns match themselves
         let test_cases = [
             "10.0.0.0/8",
-            "172.16.0.0/12", 
+            "172.16.0.0/12",
             "127.0.0.0/8",
             "192.168.0.0/16",
         ];
-        
+
         for cidr in &test_cases {
             let pattern = ScopePattern::parse(cidr).unwrap();
             assert!(pattern.matches(cidr), "CIDR {} should match itself", cidr);
@@ -72,14 +93,17 @@ mod adversarial_tests {
             ("api.example.com", "api.example.org", false),
             ("localhost", "localhost", true),
             // Note: matching is case-insensitive for domain patterns
-            ("localhost", "LOCALHOST", true), 
+            ("localhost", "LOCALHOST", true),
         ];
-        
+
         for (pattern_str, test_host, expected) in &test_cases {
             let pattern = ScopePattern::parse(pattern_str).unwrap();
             let result = pattern.matches(test_host);
-            assert_eq!(result, *expected, 
-                "pattern '{}' match against '{}' should be {}", pattern_str, test_host, expected);
+            assert_eq!(
+                result, *expected,
+                "pattern '{}' match against '{}' should be {}",
+                pattern_str, test_host, expected
+            );
         }
     }
 
@@ -92,10 +116,15 @@ mod adversarial_tests {
             ("Intigriti", "intigriti"),
             ("YesWeHack", "yeswehack"),
         ];
-        
+
         for (input, expected_key) in &platforms {
             let p = Platform::custom(input.to_string());
-            assert_eq!(p.key(), *expected_key, "platform key mismatch for {}", input);
+            assert_eq!(
+                p.key(),
+                *expected_key,
+                "platform key mismatch for {}",
+                input
+            );
         }
     }
 
@@ -108,25 +137,31 @@ mod adversarial_tests {
             ("*.example4.com", "admin.example4.com"),
             ("*.example5.com", "admin.example5.com"),
         ];
-        
+
         for (in_scope, out_scope) in &test_cases {
             let mut config = ScopeConfig::default();
             config.in_scope = vec![in_scope.to_string()];
             config.out_of_scope = vec![out_scope.to_string()];
-            
+
             let apex = in_scope.strip_prefix("*.").unwrap();
             let url_in = Url::parse(&format!("https://api.{}", apex)).unwrap();
             let url_out = Url::parse(&format!("https://{}", out_scope)).unwrap();
-            
-            assert!(config.is_url_in_scope(&url_in).unwrap(), "should be in scope");
-            assert!(!config.is_url_in_scope(&url_out).unwrap(), "should be out of scope");
+
+            assert!(
+                config.is_url_in_scope(&url_in).unwrap(),
+                "should be in scope"
+            );
+            assert!(
+                !config.is_url_in_scope(&url_out).unwrap(),
+                "should be out of scope"
+            );
         }
     }
 
     #[test]
     fn test_header_injection_matrix() {
         let malicious_chars = ['\r', '\n', '\0', '\x07', '\x1B'];
-        
+
         for ch in &malicious_chars {
             let mut extra_headers = BTreeMap::new();
             extra_headers.insert("X-Inject".to_string(), format!("val{}ue", ch));
@@ -134,7 +169,8 @@ mod adversarial_tests {
             profile.extra_headers = extra_headers;
             assert!(
                 HeaderInjector::build_headers(&profile).is_err(),
-                "should reject header with control character {:?}", ch
+                "should reject header with control character {:?}",
+                ch
             );
         }
     }
@@ -148,7 +184,7 @@ mod adversarial_tests {
             (4.5, 4.0, "*.test4.com"),
             (5.5, 5.0, "*.test5.com"),
         ];
-        
+
         for (default_rps, rule_rps, pattern) in &configs {
             let config = RateLimitConfig {
                 default_requests_per_second: *default_rps,
@@ -160,12 +196,16 @@ mod adversarial_tests {
                 ..RateLimitConfig::default()
             };
             let limiter = RateLimiter::new(config);
-            assert!(limiter.is_ok(), "should create rate limiter with rps={}", default_rps);
+            assert!(
+                limiter.is_ok(),
+                "should create rate limiter with rps={}",
+                default_rps
+            );
         }
     }
 
     // Edge case tests for adversarial scenarios
-    
+
     #[test]
     fn test_empty_scope_pattern() {
         let result = ScopePattern::parse("");
@@ -228,7 +268,10 @@ mod adversarial_tests {
         let config = ScopeConfig::default();
         // URLs without hosts should be handled gracefully
         let url = Url::parse("file:///etc/passwd").unwrap();
-        assert!(!config.is_url_in_scope(&url).unwrap_or(true), "file URLs should not be in scope");
+        assert!(
+            !config.is_url_in_scope(&url).unwrap_or(true),
+            "file URLs should not be in scope"
+        );
     }
 
     #[test]
@@ -236,9 +279,12 @@ mod adversarial_tests {
         let mut config = ScopeConfig::default();
         config.in_scope = vec![];
         config.out_of_scope = vec![];
-        
+
         let url = Url::parse("https://example.com").unwrap();
-        assert!(!config.is_url_in_scope(&url).unwrap(), "empty inclusions should reject all");
+        assert!(
+            !config.is_url_in_scope(&url).unwrap(),
+            "empty inclusions should reject all"
+        );
     }
 
     #[test]
@@ -247,12 +293,18 @@ mod adversarial_tests {
         let mut config = ScopeConfig::default();
         config.in_scope = vec!["*.example.com".to_string()];
         config.out_of_scope = vec!["secret.example.com".to_string()];
-        
+
         let allowed = Url::parse("https://public.example.com").unwrap();
         let blocked = Url::parse("https://secret.example.com").unwrap();
-        
-        assert!(config.is_url_in_scope(&allowed).unwrap(), "public.example.com should be allowed");
-        assert!(!config.is_url_in_scope(&blocked).unwrap(), "secret.example.com should be blocked");
+
+        assert!(
+            config.is_url_in_scope(&allowed).unwrap(),
+            "public.example.com should be allowed"
+        );
+        assert!(
+            !config.is_url_in_scope(&blocked).unwrap(),
+            "secret.example.com should be blocked"
+        );
     }
 
     #[test]
@@ -269,9 +321,13 @@ mod adversarial_tests {
             "*example.com",  // star without dot
             "example.*.com", // star not at start
         ];
-        
+
         for pattern in &invalid_patterns {
-            assert!(ScopePattern::parse(pattern).is_err(), "{} should be rejected", pattern);
+            assert!(
+                ScopePattern::parse(pattern).is_err(),
+                "{} should be rejected",
+                pattern
+            );
         }
     }
 
@@ -280,7 +336,7 @@ mod adversarial_tests {
         // Test IPv6 address patterns - parsing may or may not succeed
         // depending on implementation, but should not panic
         let ipv6_patterns = ["::1", "2001:db8::/32", "fe80::/10"];
-        
+
         for pattern in &ipv6_patterns {
             // Just ensure parsing doesn't panic
             let _ = ScopePattern::parse(pattern);
@@ -291,8 +347,14 @@ mod adversarial_tests {
     fn test_scope_with_port_in_host() {
         // Hosts with ports should be handled
         let pattern = ScopePattern::parse("example.com").unwrap();
-        assert!(pattern.matches("example.com:8080"), "should match host with port");
-        assert!(pattern.matches("example.com"), "should match host without port");
+        assert!(
+            pattern.matches("example.com:8080"),
+            "should match host with port"
+        );
+        assert!(
+            pattern.matches("example.com"),
+            "should match host without port"
+        );
     }
 
     #[test]
@@ -303,7 +365,7 @@ mod adversarial_tests {
         let mut config = ScopeConfig::default();
         config.in_scope = vec!["*.example.com".to_string()];
         config.out_of_scope = vec!["admin.example.com".to_string()];
-        
+
         let config = Arc::new(config);
 
         let mut handles = vec![];
