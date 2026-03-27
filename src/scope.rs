@@ -9,6 +9,7 @@ use std::sync::OnceLock;
 use std::time::Duration;
 
 use ipnet::IpNet;
+use idna::domain_to_ascii;
 use regex::Regex;
 use reqwest::{Client, Method, Request, RequestBuilder, Response};
 use serde::{Deserialize, Serialize};
@@ -844,7 +845,8 @@ pub(crate) fn normalize_host_like(candidate: &str) -> String {
         .trim_start_matches("http://");
     let host = without_scheme.split('/').next().unwrap_or(without_scheme);
     let host = host.split(':').next().unwrap_or(host);
-    normalize_target(host)
+    let normalized = normalize_target(host);
+    domain_to_ascii(&normalized).unwrap_or(normalized)
 }
 
 fn is_in_scope_heading(lower: &str) -> bool {
@@ -874,6 +876,13 @@ pub(crate) enum ScopePattern {
 
 impl ScopePattern {
     pub(crate) fn parse(pattern: &str) -> Result<Self, BugscopeError> {
+        // Reject null bytes and other control characters early
+        if pattern.contains('\0') {
+            return Err(BugscopeError::InvalidScopePattern {
+                pattern: pattern.to_string(),
+            });
+        }
+        
         let normalized = normalize_host_like(pattern);
 
         if let Ok(ip) = IpAddr::from_str(&normalized) {
@@ -885,12 +894,13 @@ impl ScopePattern {
         }
 
         if let Some(stripped) = normalized.strip_prefix("*.") {
+            // Reject wildcard-only patterns like "*" or "*." 
             if stripped.is_empty() || stripped.contains('*') {
                 return Err(BugscopeError::InvalidScopePattern {
                     pattern: pattern.to_string(),
                 });
             }
-            return Ok(Self::Wildcard(stripped.to_string()));
+            return Ok(Self::Wildcard(validate_idn_host(stripped, pattern)?));
         }
 
         if normalized.is_empty() || normalized.contains('*') || normalized.contains('/') {
@@ -899,7 +909,7 @@ impl ScopePattern {
             });
         }
 
-        Ok(Self::Domain(normalized))
+        Ok(Self::Domain(validate_idn_host(&normalized, pattern)?))
     }
 
     pub(crate) fn matches(&self, host: &str) -> bool {
@@ -922,6 +932,12 @@ impl ScopePattern {
                 .is_ok_and(|candidate| network.contains(&candidate)),
         }
     }
+}
+
+fn validate_idn_host(host: &str, pattern: &str) -> Result<String, BugscopeError> {
+    domain_to_ascii(host).map_err(|_| BugscopeError::InvalidScopePattern {
+        pattern: pattern.to_string(),
+    })
 }
 
 #[cfg(test)]

@@ -85,7 +85,7 @@ struct BucketState {
 pub struct RateLimiter {
     config: RateLimitConfig,
     rules: Arc<Vec<CompiledRule>>,
-    states: Arc<Mutex<Vec<BucketState>>>,
+    states: Arc<Vec<Arc<Mutex<BucketState>>>>,
 }
 
 impl RateLimitConfig {
@@ -159,12 +159,13 @@ impl RateLimiter {
                 backoff_until: None,
                 consecutive_429s: 0,
             })
+            .map(|state| Arc::new(Mutex::new(state)))
             .collect::<Vec<_>>();
 
         Ok(Self {
             config,
             rules: Arc::new(compiled),
-            states: Arc::new(Mutex::new(states)),
+            states: Arc::new(states),
         })
     }
 
@@ -175,11 +176,11 @@ impl RateLimiter {
     pub async fn acquire(&self, url: &Url) -> Result<(), BugscopeError> {
         loop {
             let rule_index = self.rule_index(url);
+            let rule = &self.rules[rule_index];
+            let state = Arc::clone(&self.states[rule_index]);
             let wait_duration = {
-                let mut states = self.states.lock().await;
-                let state = &mut states[rule_index];
-                let rule = &self.rules[rule_index];
-                refill(state, rule);
+                let mut state = state.lock().await;
+                refill(&mut state, rule);
 
                 if let Some(backoff_until) = state.backoff_until {
                     let now = Instant::now();
@@ -210,8 +211,7 @@ impl RateLimiter {
     /// Update backoff state based on an HTTP response.
     pub async fn record_response(&self, url: &Url, response: &Response) {
         let rule_index = self.rule_index(url);
-        let mut states = self.states.lock().await;
-        let state = &mut states[rule_index];
+        let mut state = self.states[rule_index].lock().await;
         let rule = &self.rules[rule_index];
 
         if response.status() == StatusCode::TOO_MANY_REQUESTS {
