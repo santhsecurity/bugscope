@@ -63,37 +63,110 @@ pub enum Platform {
 }
 
 impl Platform {
-    /// Construct a `HackerOne` platform identifier.
+    /// Returns the built-in `HackerOne` platform identifier.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Platform::HackerOne`].
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn hackerone() -> Self {
         Self::HackerOne
     }
 
-    /// Construct a `Bugcrowd` platform identifier.
+    /// Returns the built-in `Bugcrowd` platform identifier.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Platform::Bugcrowd`].
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn bugcrowd() -> Self {
         Self::Bugcrowd
     }
 
-    /// Construct an `Intigriti` platform identifier.
+    /// Returns the built-in `Intigriti` platform identifier.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Platform::Intigriti`].
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn intigriti() -> Self {
         Self::Intigriti
     }
 
-    /// Construct a `YesWeHack` platform identifier.
+    /// Returns the built-in `YesWeHack` platform identifier.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Platform::YesWeHack`].
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn yeswehack() -> Self {
         Self::YesWeHack
     }
 
-    /// Construct a custom platform identifier.
+    /// Creates a custom platform identifier for non-built-in providers.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Human-readable platform name to preserve.
+    ///
+    /// # Returns
+    ///
+    /// Returns [`Platform::Other`] containing `name`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn custom(name: impl Into<String>) -> Self {
         Self::Other(name.into())
     }
 
-    /// Return the normalized key used in config files.
+    /// Returns the normalized lowercase key used in config files and serialization.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns a stable lowercase key for built-in platforms, or a lowercase version
+    /// of the custom name.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn key(&self) -> String {
         match self {
@@ -105,7 +178,19 @@ impl Platform {
         }
     }
 
-    /// Return the display suffix used in platform-specific headers.
+    /// Returns the human-readable suffix used in generated bug bounty header names.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns a case-preserving platform label such as `HackerOne`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn header_suffix(&self) -> String {
         match self {
@@ -276,10 +361,23 @@ impl From<&BountyProgram> for ScopeConfig {
 }
 
 impl ScopeConfig {
-    /// Load a scope file from TOML.
+    /// Loads a scope configuration from a TOML file on disk.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path to the TOML file describing `in_scope` and `out_of_scope`.
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed [`ScopeConfig`].
     ///
     /// # Errors
-    /// Returns an error when the file cannot be read or parsed.
+    ///
+    /// Returns an error when the file cannot be read or when the TOML is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, BugscopeError> {
         let path = path.as_ref();
         let contents =
@@ -287,19 +385,63 @@ impl ScopeConfig {
         toml::from_str(&contents).map_err(|error| BugscopeError::parse(path.into(), error))
     }
 
-    /// Check whether a URL is in scope.
+    /// Checks whether a URL string resolves to an in-scope host after exclusions.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: Absolute URL string to evaluate against the compiled scope rules.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the URL host matches an in-scope rule and no out-of-scope
+    /// rule.
     ///
     /// # Errors
-    /// Returns an error when the URL or a configured scope pattern is invalid.
+    ///
+    /// Returns an error when the URL cannot be parsed or a configured pattern is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bugscope::ScopeConfig;
+    ///
+    /// let scope: ScopeConfig = toml::from_str(
+    ///     r#"
+    ///         in_scope = ["*.example.com"]
+    ///         out_of_scope = ["admin.example.com"]
+    ///     "#,
+    /// )
+    /// .unwrap();
+    ///
+    /// assert!(scope.is_in_scope("https://api.example.com").unwrap());
+    /// assert!(!scope.is_in_scope("https://admin.example.com").unwrap());
+    /// ```
     pub fn is_in_scope(&self, url: &str) -> Result<bool, BugscopeError> {
         let parsed = Url::parse(url).map_err(|error| BugscopeError::url(url, error))?;
         self.is_url_in_scope(&parsed)
     }
 
-    /// Check whether a parsed URL is in scope.
+    /// Checks whether a parsed [`Url`] is in scope after exclusions.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: Parsed URL whose host should be matched.
+    ///
+    /// # Returns
+    ///
+    /// Returns `true` when the URL's host matches an allowed rule and no exclusion.
     ///
     /// # Errors
+    ///
     /// Returns an error when a configured scope pattern is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn is_url_in_scope(&self, url: &Url) -> Result<bool, BugscopeError> {
         let Some(host) = url.host_str() else {
             return Ok(false);
@@ -320,10 +462,23 @@ impl ScopeConfig {
             .any(|pattern| pattern.matches(host)))
     }
 
-    /// Return an error if a URL is out of scope.
+    /// Returns an error when a parsed URL falls outside the configured scope.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: Parsed URL to validate.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` when the URL is allowed.
     ///
     /// # Errors
+    ///
     /// Returns an error when the URL is out of scope or the configuration is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn ensure_in_scope(&self, url: &Url) -> Result<(), BugscopeError> {
         if self.is_url_in_scope(url)? {
             Ok(())
@@ -372,8 +527,20 @@ fn compile_scope_patterns(config: &ScopeConfig) -> Result<CompiledScopeConfig, S
 ///
 /// Supports JSON, TOML, and plain text or HTML inputs.
 ///
+/// # Parameters
+///
+/// - `path`: Path to a JSON, TOML, or text/html scope source.
+///
+/// # Returns
+///
+/// Returns a normalized [`BountyProgram`] with parsed in-scope and out-of-scope targets.
+///
 /// # Errors
 /// Returns an error when the file cannot be read or parsed.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub fn parse_scope_file(path: impl AsRef<Path>) -> Result<BountyProgram, BugscopeError> {
     let path = path.as_ref();
     let content =
@@ -389,10 +556,43 @@ pub fn parse_scope_file(path: impl AsRef<Path>) -> Result<BountyProgram, Bugscop
     }
 }
 
-/// Parse scope content from a string.
+/// Parses scope content from a string using an optional format hint.
+///
+/// # Parameters
+///
+/// - `content`: Raw scope document content.
+/// - `format_hint`: Optional source format such as `json` or `toml`.
+/// - `name`: Program name to use for text-like sources.
+/// - `platform_hint`: Platform to use for text-like sources when it cannot be inferred.
+///
+/// # Returns
+///
+/// Returns a parsed [`BountyProgram`].
 ///
 /// # Errors
 /// Returns an error when the source cannot be parsed.
+///
+/// # Panics
+///
+/// This function does not panic.
+///
+/// # Examples
+///
+/// ```rust
+/// use bugscope::{parse_scope_str, Platform};
+///
+/// let program = parse_scope_str(
+///     "In scope\napi.example.com\nOut of scope\nadmin.example.com",
+///     None,
+///     "Acme",
+///     Some(Platform::hackerone()),
+/// )
+/// .unwrap();
+///
+/// assert_eq!(program.name, "Acme");
+/// assert_eq!(program.in_scope.len(), 1);
+/// assert_eq!(program.out_of_scope.len(), 1);
+/// ```
 pub fn parse_scope_str(
     content: impl AsRef<str>,
     format_hint: Option<&str>,
@@ -411,10 +611,45 @@ pub fn parse_scope_str(
     }
 }
 
-/// Parse a TOML scope document.
+/// Parses a TOML scope document into a normalized program definition.
+///
+/// # Parameters
+///
+/// - `content`: TOML source containing `program`, `platform`, `in_scope`, and `out_of_scope`.
+/// - `path`: Logical source path used only for better error messages.
+///
+/// # Returns
+///
+/// Returns the parsed [`BountyProgram`].
 ///
 /// # Errors
 /// Returns an error when the TOML is invalid.
+///
+/// # Panics
+///
+/// This function does not panic.
+///
+/// # Examples
+///
+/// ```rust
+/// use bugscope::parse_scope_toml;
+///
+/// let program = parse_scope_toml(
+///     r#"
+///         program = "Acme"
+///         platform = "hackerone"
+///
+///         [[in_scope]]
+///         target = "api.example.com"
+///         type = "domain"
+///     "#,
+///     "scope.toml",
+/// )
+/// .unwrap();
+///
+/// assert_eq!(program.name, "Acme");
+/// assert_eq!(program.in_scope[0].target, "api.example.com");
+/// ```
 pub fn parse_scope_toml(
     content: impl AsRef<str>,
     path: impl AsRef<Path>,
@@ -425,10 +660,22 @@ pub fn parse_scope_toml(
     Ok(program_from_record(file))
 }
 
-/// Fetch and parse a scope definition from a URL.
+/// Fetches a remote scope document and parses it using file-extension heuristics.
+///
+/// # Parameters
+///
+/// - `source`: Remote URL or bare host/path. Bare values are normalized to `https://...`.
+///
+/// # Returns
+///
+/// Returns the parsed [`BountyProgram`] fetched from the remote source.
 ///
 /// # Errors
 /// Returns an error when the request fails or the response cannot be parsed.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub async fn fetch_scope(source: impl AsRef<str>) -> Result<BountyProgram, BugscopeError> {
     let normalized = normalize_source_url(source.as_ref());
     let client = Client::builder()
@@ -457,12 +704,39 @@ pub async fn fetch_scope(source: impl AsRef<str>) -> Result<BountyProgram, Bugsc
     parse_scope_text(&body, name, platform)
 }
 
-/// Expand wildcard targets using the default DNS resolver.
+/// Expands wildcard scope entries into common subdomain candidates using live DNS checks.
+///
+/// # Parameters
+///
+/// - `scope`: Scope entries to inspect for wildcard targets.
+///
+/// # Returns
+///
+/// Returns candidate hostnames derived from wildcard targets, including common
+/// prefixes and any names confirmed by DNS resolution.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub async fn expand_wildcards(scope: &[ScopeTarget]) -> Vec<String> {
     expand_wildcards_with_resolver(scope, |host| async move { resolves(&host).await }).await
 }
 
-/// Expand wildcard targets using a caller-provided resolver.
+/// Expands wildcard scope entries using a caller-provided async resolver.
+///
+/// # Parameters
+///
+/// - `scope`: Scope entries to inspect.
+/// - `resolver`: Async callback that reports whether a generated candidate should
+///   be kept as resolved.
+///
+/// # Returns
+///
+/// Returns a deduplicated list of candidate hostnames.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub async fn expand_wildcards_with_resolver<I, S, F, Fut>(scope: I, resolver: F) -> Vec<String>
 where
     I: IntoIterator<Item = S>,
@@ -493,7 +767,20 @@ where
     expanded.into_iter().collect()
 }
 
-/// Return exact in-scope targets after exclusions.
+/// Returns exact in-scope targets that survive exclusion checks.
+///
+/// # Parameters
+///
+/// - `program`: Parsed program definition to inspect.
+///
+/// # Returns
+///
+/// Returns non-wildcard target strings from `program.in_scope` that are not excluded
+/// by `program.out_of_scope`.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn targets_from_scope(program: &BountyProgram) -> Vec<String> {
     let mut targets = BTreeSet::new();
@@ -508,7 +795,21 @@ pub fn targets_from_scope(program: &BountyProgram) -> Vec<String> {
     targets.into_iter().collect()
 }
 
-/// Check whether a candidate target is in scope for a program.
+/// Checks whether a single candidate target is allowed by a program definition.
+///
+/// # Parameters
+///
+/// - `program`: Parsed program whose scope should be enforced.
+/// - `candidate`: Domain, URL, or IP-like string to test.
+///
+/// # Returns
+///
+/// Returns `true` when the candidate matches at least one in-scope rule and no
+/// out-of-scope rule.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn is_target_in_scope(program: &BountyProgram, candidate: impl AsRef<str>) -> bool {
     let normalized = normalize_target(candidate.as_ref());
@@ -524,7 +825,30 @@ pub fn is_target_in_scope(program: &BountyProgram, candidate: impl AsRef<str>) -
     included && !excluded
 }
 
-/// Check whether a wildcard pattern matches a candidate host.
+/// Checks whether a `*.example.com`-style wildcard matches a candidate host.
+///
+/// # Parameters
+///
+/// - `pattern`: Wildcard pattern expected to begin with `*.`.
+/// - `candidate`: Hostname to test.
+///
+/// # Returns
+///
+/// Returns `true` when `candidate` is a subdomain of the wildcard suffix but not the
+/// suffix itself.
+///
+/// # Panics
+///
+/// This function does not panic.
+///
+/// # Examples
+///
+/// ```rust
+/// use bugscope::wildcard_matches;
+///
+/// assert!(wildcard_matches("*.example.com", "api.example.com"));
+/// assert!(!wildcard_matches("*.example.com", "example.com"));
+/// ```
 #[must_use]
 pub fn wildcard_matches(pattern: impl AsRef<str>, candidate: impl AsRef<str>) -> bool {
     let pattern = pattern.as_ref();
@@ -1002,7 +1326,20 @@ pub struct ScopeGuard {
 }
 
 impl ScopeGuard {
-    /// Create a new scope guard.
+    /// Creates a request guard that enforces scope before requests leave the process.
+    ///
+    /// # Parameters
+    ///
+    /// - `client`: Reqwest client used for request construction and execution.
+    /// - `scope`: Scope configuration that outgoing requests must satisfy.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`ScopeGuard`] without extra headers or a rate limiter attached.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn new(client: Client, scope: ScopeConfig) -> Self {
         Self {
@@ -1013,24 +1350,74 @@ impl ScopeGuard {
         }
     }
 
-    /// Attach a validated header set to every outgoing request.
+    /// Configures a validated header set to be applied to every executed request.
+    ///
+    /// # Parameters
+    ///
+    /// - `headers`: Prevalidated headers to attach during [`Self::execute`].
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated guard.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn with_headers(mut self, headers: HeaderSet) -> Self {
         self.headers = Some(headers);
         self
     }
 
-    /// Attach a rate limiter to the guard.
+    /// Configures a rate limiter that will wrap executions from this guard.
+    ///
+    /// # Parameters
+    ///
+    /// - `rate_limiter`: Limiter to use before sending requests.
+    ///
+    /// # Returns
+    ///
+    /// Returns the updated guard.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn with_rate_limiter(mut self, rate_limiter: RateLimiter) -> Self {
         self.rate_limiter = Some(rate_limiter);
         self
     }
 
-    /// Start a scoped request.
+    /// Starts building a request after first checking that the target URL is in scope.
+    ///
+    /// # Parameters
+    ///
+    /// - `method`: HTTP method to use.
+    /// - `url`: Absolute target URL.
+    ///
+    /// # Returns
+    ///
+    /// Returns a reqwest [`RequestBuilder`] when `url` is in scope.
     ///
     /// # Errors
     /// Returns an error when the URL is invalid or out of scope.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
+    ///
+    /// # Examples
+    ///
+    /// ```rust
+    /// use bugscope::{ScopeConfig, ScopeGuard};
+    /// use reqwest::{Client, Method};
+    ///
+    /// let scope: ScopeConfig = toml::from_str(r#"in_scope = ["api.example.com"]"#).unwrap();
+    /// let guard = ScopeGuard::new(Client::new(), scope);
+    ///
+    /// let request = guard.request(Method::GET, "https://api.example.com/health");
+    /// assert!(request.is_ok());
+    /// ```
     pub fn request(&self, method: Method, url: &str) -> Result<RequestBuilder, BugscopeError> {
         if !self.scope.is_in_scope(url)? {
             return Err(BugscopeError::OutOfScope {
@@ -1041,10 +1428,23 @@ impl ScopeGuard {
         Ok(self.client.request(method, url))
     }
 
-    /// Execute a request after validating scope.
+    /// Executes a prepared request after scope validation, optional header injection,
+    /// and optional rate limiting.
+    ///
+    /// # Parameters
+    ///
+    /// - `request`: Fully constructed request to send.
+    ///
+    /// # Returns
+    ///
+    /// Returns the HTTP response from the wrapped reqwest client.
     ///
     /// # Errors
     /// Returns an error when the request is out of scope or the underlying client fails.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub async fn execute(&self, mut request: Request) -> Result<Response, BugscopeError> {
         self.scope.ensure_in_scope(request.url())?;
 

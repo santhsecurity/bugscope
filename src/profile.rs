@@ -78,7 +78,22 @@ pub enum FindingTag {
     BelowMinSeverity,
 }
 
-/// Common bug bounty exclusions shared by many programs.
+/// Returns a baseline list of exclusions commonly ignored by bug bounty programs.
+///
+/// These rules cover low-signal findings such as missing security headers and
+/// generic TLS issues so a new profile starts with realistic triage defaults.
+///
+/// # Parameters
+///
+/// This function takes no additional parameters.
+///
+/// # Returns
+///
+/// Returns a vector of reusable [`ExclusionRule`] values.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn common_exclusions() -> Vec<ExclusionRule> {
     vec![
@@ -133,7 +148,24 @@ pub fn common_exclusions() -> Vec<ExclusionRule> {
     ]
 }
 
-/// Classify a finding against a saved profile.
+/// Classifies a finding against profile scope, severity floor, and exclusion rules.
+///
+/// # Parameters
+///
+/// - `template_id`: Template identifier produced by the scanner.
+/// - `template_tags`: Tags associated with the finding.
+/// - `target`: Host, URL, or asset identifier where the finding was observed.
+/// - `severity`: Reported severity string for the finding.
+/// - `profile`: Profile whose scope and exclusions should be enforced.
+///
+/// # Returns
+///
+/// Returns a [`FindingTag`] describing whether the finding is reportable, excluded,
+/// out of scope, or below the profile's minimum severity.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn classify_finding(
     template_id: impl AsRef<str>,
@@ -171,7 +203,22 @@ pub fn classify_finding(
     FindingTag::Reportable
 }
 
-/// Generate platform-specific headers for a profile.
+/// Generates the platform-specific bounty headers implied by a profile.
+///
+/// Existing custom headers in `profile.headers` are preserved, and platform defaults
+/// are only inserted when a key is not already present.
+///
+/// # Parameters
+///
+/// - `profile`: Profile containing platform, username, and custom headers.
+///
+/// # Returns
+///
+/// Returns a new header map suitable for authenticated scanning requests.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn platform_headers(profile: &BountyProfile) -> HashMap<String, String> {
     let mut headers = profile.headers.clone();
@@ -224,7 +271,20 @@ pub fn platform_headers(profile: &BountyProfile) -> HashMap<String, String> {
     headers
 }
 
-/// Default profile directory.
+/// Returns the default on-disk directory for persisted bounty profiles.
+///
+/// # Parameters
+///
+/// This function takes no additional parameters.
+///
+/// # Returns
+///
+/// Returns `$HOME/.bugscope/profiles` when `HOME` is set, or `./.bugscope/profiles`
+/// as a fallback.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn profiles_dir() -> PathBuf {
     std::env::var("HOME")
@@ -235,8 +295,20 @@ pub fn profiles_dir() -> PathBuf {
 
 /// Save a profile to disk as YAML.
 ///
+/// # Parameters
+///
+/// - `profile`: Profile to serialize and write.
+///
+/// # Returns
+///
+/// Returns the final YAML file path after the write succeeds.
+///
 /// # Errors
 /// Returns an error when the profile cannot be serialized or written.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub fn save_profile(profile: &BountyProfile) -> std::io::Result<PathBuf> {
     let dir = profiles_dir();
     std::fs::create_dir_all(&dir)?;
@@ -249,8 +321,20 @@ pub fn save_profile(profile: &BountyProfile) -> std::io::Result<PathBuf> {
 
 /// Load a profile by name.
 ///
+/// # Parameters
+///
+/// - `name`: Profile file stem without the `.yaml` extension.
+///
+/// # Returns
+///
+/// Returns the deserialized [`BountyProfile`] for `name`.
+///
 /// # Errors
 /// Returns an error when the file cannot be read or parsed.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub fn load_profile(name: &str) -> std::io::Result<BountyProfile> {
     let path = profiles_dir().join(format!("{name}.yaml"));
     let content = std::fs::read_to_string(&path)?;
@@ -260,8 +344,21 @@ pub fn load_profile(name: &str) -> std::io::Result<BountyProfile> {
 
 /// List all saved profile names.
 ///
+/// # Parameters
+///
+/// This function takes no additional parameters.
+///
+/// # Returns
+///
+/// Returns all `.yaml` profile file stems in sorted order. Missing profile
+/// directories are treated as empty.
+///
 /// # Errors
 /// Returns an error when the profile directory cannot be read.
+///
+/// # Panics
+///
+/// This function does not panic.
 pub fn list_profiles() -> std::io::Result<Vec<String>> {
     let dir = profiles_dir();
     if !dir.exists() {
@@ -285,7 +382,22 @@ pub fn list_profiles() -> std::io::Result<Vec<String>> {
     Ok(names)
 }
 
-/// Create a profile from a parsed program.
+/// Creates a starting bounty profile from a parsed program definition.
+///
+/// # Parameters
+///
+/// - `program`: Parsed scope document that provides platform and scope targets.
+/// - `handle`: Filesystem-safe handle to use as the profile name and program handle.
+/// - `username`: Optional researcher username for platform-specific headers.
+///
+/// # Returns
+///
+/// Returns a [`BountyProfile`] populated with common exclusions and a platform
+/// default rate limit.
+///
+/// # Panics
+///
+/// This function does not panic.
 #[must_use]
 pub fn profile_from_program(
     program: &BountyProgram,

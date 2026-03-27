@@ -41,7 +41,23 @@ impl BugscopeArgs {
         EngagementStore::discover()?.load(name).map(Some)
     }
 
-    /// Return the selected platform from CLI or engagement config.
+    /// Selects the effective bounty platform from CLI flags or engagement defaults.
+    ///
+    /// CLI input wins over the engagement value so operators can temporarily override
+    /// platform-specific header behavior without editing saved state.
+    ///
+    /// # Parameters
+    ///
+    /// - `engagement`: Optional engagement loaded from disk.
+    ///
+    /// # Returns
+    ///
+    /// Returns a custom platform built from `--bounty-platform` when present,
+    /// otherwise the engagement platform, otherwise `None`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn selected_platform(&self, engagement: Option<&EngagementConfig>) -> Option<Platform> {
         self.bounty_platform
@@ -50,7 +66,20 @@ impl BugscopeArgs {
             .or_else(|| engagement.map(|config| config.platform.clone()))
     }
 
-    /// Return the CLI rate-limit override as requests per second.
+    /// Converts the CLI rate-limit flag into the floating-point form used internally.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns the `--rate-limit` value as requests per second, or `None` when no
+    /// override was provided.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn rate_limit_override(&self) -> Option<f64> {
         self.rate_limit.map(f64::from)

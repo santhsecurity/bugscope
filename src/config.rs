@@ -30,49 +30,149 @@ impl BugscopePaths {
         })
     }
 
-    /// Construct bugscope paths from a specific root.
+    /// Constructs a full set of `bugscope` filesystem paths from a caller-supplied root.
+    ///
+    /// This is useful when tests or embedded tools want to avoid the default
+    /// `BUGSCOPE_HOME` or `~/.bugscope` discovery behavior.
+    ///
+    /// # Parameters
+    ///
+    /// - `root`: Base directory under which `bugscope` should place engagements,
+    ///   profiles, scope files, and rate-limit configuration.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`BugscopePaths`] that derives all other paths from `root`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn new(root: impl Into<PathBuf>) -> Self {
         Self { root: root.into() }
     }
 
-    /// Return the bugscope root directory.
+    /// Returns the root directory currently used for `bugscope` state.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns a shared reference to the configured root path.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn root(&self) -> &Path {
         &self.root
     }
 
-    /// Return the engagements directory.
+    /// Returns the directory that stores engagement TOML files.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/engagements`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn engagements_dir(&self) -> PathBuf {
         self.root.join("engagements")
     }
 
-    /// Return the active engagement selector file.
+    /// Returns the file used to remember the active engagement name.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/active`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn active_engagement_file(&self) -> PathBuf {
         self.root.join("active")
     }
 
-    /// Return the default scope file path.
+    /// Returns the default top-level scope file path.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/scope.toml`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn scope_file(&self) -> PathBuf {
         self.root.join("scope.toml")
     }
 
-    /// Return the profiles directory path.
+    /// Returns the directory used to persist bounty profiles.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/profiles`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn profiles_dir(&self) -> PathBuf {
         self.root.join("profiles")
     }
 
-    /// Return the default headers file path.
+    /// Returns the default header-profile configuration path.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/headers.toml`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn headers_file(&self) -> PathBuf {
         self.root.join("headers.toml")
     }
 
-    /// Return the default rate-limit file path.
+    /// Returns the default rate-limit configuration path.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<root>/ratelimits.toml`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn rate_limits_file(&self) -> PathBuf {
         self.root.join("ratelimits.toml")

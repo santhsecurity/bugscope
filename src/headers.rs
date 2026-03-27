@@ -43,7 +43,23 @@ pub struct HeaderProfile {
 }
 
 impl HeaderProfile {
-    /// Create a profile with platform-specific auth defaults.
+    /// Creates a header profile preloaded with the default auth scheme for a platform.
+    ///
+    /// `Bugcrowd` uses `Token` auth by default while the other built-in platforms use
+    /// `Bearer`.
+    ///
+    /// # Parameters
+    ///
+    /// - `platform`: Platform whose default header behavior should be used.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`HeaderProfile`] with `platform` set and `auth_scheme`
+    /// initialized.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn for_platform(platform: Platform) -> Self {
         let auth_scheme = if platform.key() == "bugcrowd" {
@@ -67,12 +83,36 @@ pub struct HeaderSet {
 }
 
 impl HeaderSet {
-    /// Iterate over the validated headers.
+    /// Iterates over the validated header pairs stored in this set.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns an iterator over `(HeaderName, HeaderValue)` tuples in insertion order.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn iter(&self) -> impl Iterator<Item = &(HeaderName, HeaderValue)> {
         self.headers.iter()
     }
 
-    /// Apply the header set to a request.
+    /// Appends every validated header in this set to a reqwest request.
+    ///
+    /// # Parameters
+    ///
+    /// - `request`: Request to mutate in place.
+    ///
+    /// # Returns
+    ///
+    /// This function returns no value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn apply(&self, request: &mut Request) {
         request.headers_mut().extend(self.headers.iter().cloned());
     }
@@ -98,10 +138,23 @@ impl HeaderInjector {
         toml::from_str(&contents).map_err(|error| BugscopeError::parse(path.into(), error))
     }
 
-    /// Resolve a profile for a platform key.
+    /// Resolves a named platform profile from the loaded platform map.
+    ///
+    /// # Parameters
+    ///
+    /// - `platform`: Platform key such as `hackerone` or `bugcrowd`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a shared reference to the matching [`HeaderProfile`].
     ///
     /// # Errors
-    /// Returns an error when the platform is not configured.
+    ///
+    /// Returns an error when `platform` is not present in `self.platforms`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn profile(&self, platform: &str) -> Result<&HeaderProfile, BugscopeError> {
         self.platforms
             .get(platform)
@@ -110,10 +163,23 @@ impl HeaderInjector {
             })
     }
 
-    /// Build a validated header set from a profile.
+    /// Converts a header profile into a validated request-ready [`HeaderSet`].
+    ///
+    /// # Parameters
+    ///
+    /// - `profile`: Profile describing program handle, token, and extra headers.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`HeaderSet`] containing only validated header names and values.
     ///
     /// # Errors
-    /// Returns an error when a header name or value is invalid.
+    ///
+    /// Returns an error when any header name or value is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn build_headers(profile: &HeaderProfile) -> Result<HeaderSet, BugscopeError> {
         let mut headers = Vec::new();
         let platform = profile
@@ -152,10 +218,24 @@ impl HeaderInjector {
         Ok(HeaderSet { headers })
     }
 
-    /// Inject a profile's headers into a reqwest request.
+    /// Applies a profile's derived headers to a reqwest request.
+    ///
+    /// # Parameters
+    ///
+    /// - `request`: Request to enrich with bug bounty headers.
+    /// - `profile`: Profile that describes which headers should be added.
+    ///
+    /// # Returns
+    ///
+    /// Returns the mutated request with validated headers attached.
     ///
     /// # Errors
-    /// Returns an error when a header is invalid.
+    ///
+    /// Returns an error when the profile produces an invalid header.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn inject_headers(
         &self,
         mut request: Request,

@@ -31,10 +31,24 @@ pub struct EngagementConfig {
 }
 
 impl EngagementConfig {
-    /// Load an engagement from a specific path.
+    /// Loads a single engagement file from disk and normalizes missing credential metadata.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path to the TOML engagement file to load.
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed [`EngagementConfig`]. If the credentials section omits a
+    /// platform, this method copies the top-level engagement platform into it.
     ///
     /// # Errors
-    /// Returns an error when the file cannot be read or parsed.
+    ///
+    /// Returns an error when the file cannot be read or when the TOML is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn load_from_path(path: impl AsRef<Path>) -> Result<Self, BugscopeError> {
         let path = path.as_ref();
         let contents =
@@ -65,7 +79,19 @@ impl Default for EngagementStore {
 }
 
 impl EngagementStore {
-    /// Create a store from resolved paths.
+    /// Creates an engagement store rooted at a specific [`BugscopePaths`] layout.
+    ///
+    /// # Parameters
+    ///
+    /// - `paths`: Filesystem layout used to resolve engagement files and the active selector.
+    ///
+    /// # Returns
+    ///
+    /// Returns a new [`EngagementStore`] backed by `paths`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn new(paths: BugscopePaths) -> Self {
         Self { paths }
@@ -79,16 +105,41 @@ impl EngagementStore {
         Ok(Self::new(BugscopePaths::discover()?))
     }
 
-    /// Return the file path for an engagement name.
+    /// Returns the TOML path where a named engagement should live.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Logical engagement name without the `.toml` suffix.
+    ///
+    /// # Returns
+    ///
+    /// Returns `<engagements_dir>/<name>.toml`.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn engagement_path(&self, name: &str) -> PathBuf {
         self.paths.engagements_dir().join(format!("{name}.toml"))
     }
 
-    /// Load a named engagement.
+    /// Loads a named engagement from the configured engagements directory.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Engagement name without the `.toml` extension.
+    ///
+    /// # Returns
+    ///
+    /// Returns the parsed [`EngagementConfig`] for `name`.
     ///
     /// # Errors
-    /// Returns an error when the engagement is missing or malformed.
+    ///
+    /// Returns an error when the engagement file is missing, unreadable, or malformed.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn load(&self, name: &str) -> Result<EngagementConfig, BugscopeError> {
         let path = self.engagement_path(name);
         if !path.exists() {
@@ -99,10 +150,24 @@ impl EngagementStore {
         EngagementConfig::load_from_path(path)
     }
 
-    /// List all available engagements.
+    /// Lists all engagement names found in the engagements directory.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns engagement file stems sorted lexicographically. Missing engagement
+    /// directories are treated as empty.
     ///
     /// # Errors
-    /// Returns an error when the engagements directory cannot be read.
+    ///
+    /// Returns an error when the directory exists but cannot be read.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn list(&self) -> Result<Vec<String>, BugscopeError> {
         let dir = self.paths.engagements_dir();
         if !dir.exists() {
@@ -124,10 +189,24 @@ impl EngagementStore {
         Ok(names)
     }
 
-    /// Persist the active engagement name.
+    /// Persists the active engagement selector to disk.
+    ///
+    /// # Parameters
+    ///
+    /// - `name`: Engagement name that should become active for later lookups.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` after writing the selector file.
     ///
     /// # Errors
-    /// Returns an error when the selector file cannot be written.
+    ///
+    /// Returns an error when the root directory cannot be created or the selector
+    /// file cannot be written.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn switch(&self, name: &str) -> Result<(), BugscopeError> {
         std::fs::create_dir_all(self.paths.root())
             .map_err(|error| BugscopeError::io(self.paths.root().into(), error))?;
@@ -135,10 +214,24 @@ impl EngagementStore {
             .map_err(|error| BugscopeError::io(self.paths.active_engagement_file(), error))
     }
 
-    /// Return the selected active engagement name, if any.
+    /// Reads the active engagement selector if one has been stored.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Some(name)` when the selector file exists and contains a non-empty
+    /// engagement name, otherwise returns `None`.
     ///
     /// # Errors
-    /// Returns an error when the selector file cannot be read.
+    ///
+    /// Returns an error when the selector file exists but cannot be read.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn active_name(&self) -> Result<Option<String>, BugscopeError> {
         let path = self.paths.active_engagement_file();
         if !path.exists() {
@@ -155,10 +248,25 @@ impl EngagementStore {
         }
     }
 
-    /// Load the selected active engagement, if any.
+    /// Loads the engagement currently selected by [`Self::switch`], if one exists.
+    ///
+    /// # Parameters
+    ///
+    /// This function takes no additional parameters.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(Some(config))` when an active engagement name is present and
+    /// resolves successfully, or `Ok(None)` when no selector is set.
     ///
     /// # Errors
-    /// Returns an error when the active selector or engagement file is invalid.
+    ///
+    /// Returns an error when the selector file cannot be read or the selected
+    /// engagement cannot be loaded.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn load_active(&self) -> Result<Option<EngagementConfig>, BugscopeError> {
         match self.active_name()? {
             Some(name) => self.load(&name).map(Some),

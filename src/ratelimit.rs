@@ -100,7 +100,22 @@ impl RateLimitConfig {
         toml::from_str(&contents).map_err(|error| BugscopeError::parse(path.into(), error))
     }
 
-    /// Override all requests-per-second values with a CLI-provided limit.
+    /// Replaces every configured requests-per-second value with a single override.
+    ///
+    /// This is intended for CLI flags that need to flatten program-specific limits
+    /// into one emergency throttle.
+    ///
+    /// # Parameters
+    ///
+    /// - `requests_per_second`: Override applied to the default bucket and every rule.
+    ///
+    /// # Returns
+    ///
+    /// This function returns no value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn override_requests_per_second(&mut self, requests_per_second: f64) {
         self.default_requests_per_second = requests_per_second;
         for rule in &mut self.rules {
@@ -110,10 +125,24 @@ impl RateLimitConfig {
 }
 
 impl RateLimiter {
-    /// Build a rate limiter from configuration.
+    /// Builds a compiled async rate limiter from declarative configuration.
+    ///
+    /// # Parameters
+    ///
+    /// - `config`: Default rate and pattern-specific rule set to enforce.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`RateLimiter`] with compiled scope matchers and initialized token
+    /// buckets.
     ///
     /// # Errors
-    /// Returns an error when a scope pattern is invalid.
+    ///
+    /// Returns an error when any rate or rule pattern is invalid.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub fn new(config: RateLimitConfig) -> Result<Self, BugscopeError> {
         validate_rate_limit(
             "default_requests_per_second",
@@ -166,10 +195,24 @@ impl RateLimiter {
         })
     }
 
-    /// Wait until the URL is allowed under the configured limit.
+    /// Waits until a request for `url` is permitted by the matching bucket.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: Target URL whose host is matched against configured rules.
+    ///
+    /// # Returns
+    ///
+    /// Returns `Ok(())` once a token is available and any active backoff window has
+    /// elapsed.
     ///
     /// # Errors
-    /// Returns an error when the matching rule contains an invalid scope pattern.
+    ///
+    /// Returns an error when the configured scope patterns cannot be compiled.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub async fn acquire(&self, url: &Url) -> Result<(), BugscopeError> {
         loop {
             let rule_index = self.rule_index(url);
@@ -205,7 +248,23 @@ impl RateLimiter {
         }
     }
 
-    /// Update backoff state based on an HTTP response.
+    /// Updates bucket backoff state after an HTTP response is received.
+    ///
+    /// A `429 Too Many Requests` response increases the matching bucket's backoff
+    /// window using `Retry-After` when present, or exponential backoff otherwise.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: URL whose matching rule bucket should be updated.
+    /// - `response`: Response used to derive backoff behavior.
+    ///
+    /// # Returns
+    ///
+    /// This function returns no value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub async fn record_response(&self, url: &Url, response: &Response) {
         let rule_index = self.rule_index(url);
         let mut state = self.states[rule_index].lock().await;
@@ -233,10 +292,26 @@ impl RateLimiter {
         }
     }
 
-    /// Execute a request while applying rate limits and automatic 429 backoff.
+    /// Executes a request while enforcing token-bucket limits and retrying `429`s.
+    ///
+    /// # Parameters
+    ///
+    /// - `client`: Reqwest client used to send the request.
+    /// - `request`: Prepared request to execute.
+    ///
+    /// # Returns
+    ///
+    /// Returns the final [`Response`] after applying throttling and any configured
+    /// retry budget.
     ///
     /// # Errors
-    /// Returns an error when the underlying request fails.
+    ///
+    /// Returns an error when scope compilation fails, the request cannot be cloned
+    /// for retries, or reqwest returns an execution error.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     pub async fn execute(
         &self,
         client: &Client,

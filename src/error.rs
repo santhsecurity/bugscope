@@ -138,31 +138,97 @@ pub enum BugscopeError {
 }
 
 impl BugscopeError {
-    /// Create an `Io` error bound to a path.
+    /// Builds an [`Io`](BugscopeError::Io) variant for a specific file path.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path whose I/O operation failed.
+    /// - `source`: Original filesystem error returned by the standard library.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::Io`] carrying both the path and the original error.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn io(path: PathBuf, source: std::io::Error) -> Self {
         Self::Io { path, source }
     }
 
-    /// Create a TOML `Parse` error bound to a path.
+    /// Builds a [`Parse`](BugscopeError::Parse) variant for invalid TOML input.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path of the TOML document that failed to parse.
+    /// - `source`: Original TOML deserialization error.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::Parse`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn parse(path: PathBuf, source: toml::de::Error) -> Self {
         Self::Parse { path, source }
     }
 
-    /// Create a JSON parse error bound to a path.
+    /// Builds a [`Json`](BugscopeError::Json) variant for malformed JSON input.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path of the JSON document that failed to parse.
+    /// - `source`: Original JSON deserialization error.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::Json`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn json(path: PathBuf, source: serde_json::Error) -> Self {
         Self::Json { path, source }
     }
 
-    /// Create a YAML parse error bound to a path.
+    /// Builds a [`Yaml`](BugscopeError::Yaml) variant for malformed YAML input.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path of the YAML document that failed to parse.
+    /// - `source`: Original YAML deserialization error.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::Yaml`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn yaml(path: PathBuf, source: serde_yaml::Error) -> Self {
         Self::Yaml { path, source }
     }
 
-    /// Create a `ScopeParse` error builder.
+    /// Builds a [`ScopeParse`](BugscopeError::ScopeParse) variant with custom details.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path of the scope source being parsed.
+    /// - `source`: Human-readable explanation of what part of the scope document
+    ///   was invalid.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::ScopeParse`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn scope_parse(path: PathBuf, source: impl Into<String>) -> Self {
         Self::ScopeParse {
@@ -171,7 +237,20 @@ impl BugscopeError {
         }
     }
 
-    /// Create a `ProfileParse` error builder.
+    /// Builds a [`ProfileParse`](BugscopeError::ProfileParse) variant with custom details.
+    ///
+    /// # Parameters
+    ///
+    /// - `path`: Path of the profile source being parsed.
+    /// - `source`: Human-readable explanation of what part of the profile was invalid.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::ProfileParse`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn profile_parse(path: PathBuf, source: impl Into<String>) -> Self {
         Self::ProfileParse {
@@ -180,7 +259,20 @@ impl BugscopeError {
         }
     }
 
-    /// Create a URL parsing error.
+    /// Builds a [`Url`](BugscopeError::Url) variant for a failed URL parse.
+    ///
+    /// # Parameters
+    ///
+    /// - `url`: Original URL string that failed to parse.
+    /// - `source`: Parser error returned by `url`.
+    ///
+    /// # Returns
+    ///
+    /// Returns a [`BugscopeError::Url`] value.
+    ///
+    /// # Panics
+    ///
+    /// This function does not panic.
     #[must_use]
     pub fn url(url: impl Into<String>, source: url::ParseError) -> Self {
         Self::Url {
