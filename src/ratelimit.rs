@@ -226,7 +226,7 @@ impl RateLimiter {
             state.backoff_until = Some(Instant::now() + delay);
         } else if state
             .backoff_until
-            .map_or(true, |backoff| Instant::now() >= backoff)
+            .is_none_or(|backoff| Instant::now() >= backoff)
         {
             state.consecutive_429s = 0;
             state.backoff_until = None;
